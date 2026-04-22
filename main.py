@@ -3,7 +3,7 @@ from assets.sprites.redbull_can import RedBullCan
 from assets.sprites.heart_attack_bar import create_heart_attack_bar_surface
 from assets.sprites.death_screen import draw_death_screen
 from assets.sprites.shop_screen import UpgradeShop
-from assets.sounds import create_can_click_sound
+from assets.sounds import create_can_click_sound, create_death_song_sound
 
 
 pygame.mixer.pre_init(44100, -16, 1, 512)
@@ -13,9 +13,11 @@ screen_width, screen_height = display_info.current_w, display_info.current_h
 screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
 can = RedBullCan()
 can_click_sound = create_can_click_sound()
+death_song_sound = create_death_song_sound()
 shop = UpgradeShop()
 health_level = 0.0
 dead = False
+death_song_playing = False
 shop_open = False
 money = 0
 upgrade_levels = {"insulation": 0, "cardio": 0, "coupon": 0}
@@ -58,6 +60,8 @@ while running:
                 if btn_rect.collidepoint(event.pos):
                     health_level = 0.0
                     dead = False
+                    death_song_sound.stop()
+                    death_song_playing = False
                     shop_open = False
             elif shop_open:
                 if shop_close_rect is not None and shop_close_rect.collidepoint(event.pos):
@@ -76,6 +80,9 @@ while running:
                 health_level = min(1.0, health_level + click_heart_gain)
                 if health_level >= 1.0:
                     dead = True
+                    if not death_song_playing:
+                        death_song_sound.play(-1)
+                        death_song_playing = True
                     shop_open = False
 
         elif event.type == pygame.VIDEORESIZE:
@@ -106,4 +113,5 @@ while running:
 
     pygame.display.flip()
 
+death_song_sound.stop()
 pygame.quit()
