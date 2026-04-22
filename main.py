@@ -1,8 +1,11 @@
 import pygame
 from assets.sprites.redbull_can import RedBullCan
+from assets.sprites.click_popup import ClickPopup
 from assets.sprites.heart_attack_bar import create_heart_attack_bar_surface
 from assets.sprites.death_screen import draw_death_screen
-from assets.sounds import create_can_click_sound
+from assets.sprites.shop_screen import UpgradeShop
+from assets.sounds import create_can_click_sound, create_death_song_sound
+from game.player import Player
 
 
 pygame.mixer.pre_init(44100, -16, 1, 512)
@@ -12,8 +15,14 @@ screen_width, screen_height = display_info.current_w, display_info.current_h
 screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
 can = RedBullCan()
 can_click_sound = create_can_click_sound()
-health_level = 0.0
-dead = False
+death_song_sound = create_death_song_sound()
+shop = UpgradeShop()
+player = Player()
+death_song_playing = False
+shop_close_rect = None
+shop_button_rects = {}
+hud_font = pygame.font.SysFont("arial", 24, bold=True)
+click_popups = []
 
 
 clock = pygame.time.Clock()
@@ -22,8 +31,16 @@ running = True
 while running:
     dt = clock.tick(60) / 1000
     can.update(dt)
+
+    alive_popups = []
+    for popup in click_popups:
+        if popup.update(dt):
+            alive_popups.append(popup)
+    click_popups = alive_popups
+
+    player.update_passive_recovery(dt)
+
     can_center = (screen.get_width() // 2, screen.get_height() // 2)
-    can_rect = can.get_rect(can_center)
 
     for event in pygame.event.get():
 
@@ -31,33 +48,73 @@ while running:
             running = False
 
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            running = False
+            if player.shop_open:
+                player.shop_open = False
+            else:
+                running = False
+
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_s and not player.dead:
+            player.shop_open = not player.shop_open
+
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if dead:
+            if player.dead:
                 btn_rect = draw_death_screen(screen)
                 if btn_rect.collidepoint(event.pos):
-                    health_level = 0.0
-                    dead = False
+                    player.restart_after_death()
+                    death_song_sound.stop()
+                    death_song_playing = False
+            elif player.shop_open:
+                if shop_close_rect is not None and shop_close_rect.collidepoint(event.pos):
+                    player.shop_open = False
+                else:
+                    for key, button_rect in shop_button_rects.items():
+                        if button_rect.collidepoint(event.pos):
+                            player.money, _ = shop.try_buy(key, player.money, player.upgrade_levels)
+                            break
             elif can.is_clicked(event.pos, can_center):
                 can_click_sound.play()
                 can.animate()
-                health_level = min(1.0, health_level + 0.05)
-                if health_level >= 1.0:
-                    dead = True
+
+                click_gain = player.get_click_heart_gain()
+                click_gain_percent = int(round(click_gain * 100))
+                click_popups.append(ClickPopup(f"+{click_gain_percent}%", can_center[0], can_center[1] - 110))
+
+                died_now = player.apply_can_click()
+                if died_now:
+                    if not death_song_playing:
+                        death_song_sound.play(-1)
+                        death_song_playing = True
 
         elif event.type == pygame.VIDEORESIZE:
             screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
 
     screen.fill("white")
-    if dead:
+    if player.dead:
         btn_rect = draw_death_screen(screen)
+        shop_close_rect = None
+        shop_button_rects = {}
     else:
         screen.blit(can.surface, can.get_rect(can_center))
         bar_width = int(min(max(screen.get_width() * 0.56, 320), 780))
-        heart_attack_bar_surface = create_heart_attack_bar_surface(width=bar_width, level=health_level)
+        heart_attack_bar_surface = create_heart_attack_bar_surface(width=bar_width, level=player.health_level)
         bar_rect = heart_attack_bar_surface.get_rect(midtop=(screen.get_width() // 2, 16))
         screen.blit(heart_attack_bar_surface, bar_rect)
 
+        money_text = hud_font.render(f"Money: ${player.money}", True, (30, 95, 40))
+        shop_hint = hud_font.render("S = Shop", True, (40, 40, 55))
+        screen.blit(money_text, (16, 18))
+        screen.blit(shop_hint, (screen.get_width() - shop_hint.get_width() - 16, 18))
+
+        for popup in click_popups:
+            popup.draw(screen)
+
+        if player.shop_open:
+            shop_close_rect, shop_button_rects = shop.draw(screen, player.money, player.upgrade_levels)
+        else:
+            shop_close_rect = None
+            shop_button_rects = {}
+
     pygame.display.flip()
 
+death_song_sound.stop()
 pygame.quit()
