@@ -12,23 +12,23 @@ class UpgradeShop:
             "insulation": {
                 "title": "Stress Insulation",
                 "description": "Lower heart attack gain per click.",
-                "base_cost": 25,
-                "cost_scale": 1.65,
-                "max_level": 5,
+                "base_cost": 12,
+                "cost_scale": 1.45,
+                "max_level": 6,
             },
             "cardio": {
                 "title": "Cardio Routine",
                 "description": "Slowly recover over time.",
-                "base_cost": 35,
-                "cost_scale": 1.7,
-                "max_level": 5,
+                "base_cost": 18,
+                "cost_scale": 1.5,
+                "max_level": 6,
             },
             "coupon": {
                 "title": "Hydration Habit",
                 "description": "Gain extra money per can click.",
-                "base_cost": 40,
-                "cost_scale": 1.9,
-                "max_level": 4,
+                "base_cost": 22,
+                "cost_scale": 1.6,
+                "max_level": 5,
             },
         }
 
