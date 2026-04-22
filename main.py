@@ -1,5 +1,6 @@
 import pygame
 from assets.sprites.redbull_can import RedBullCan
+from assets.sprites.click_popup import ClickPopup
 from assets.sprites.heart_attack_bar import create_heart_attack_bar_surface
 from assets.sprites.death_screen import draw_death_screen
 from assets.sprites.shop_screen import UpgradeShop
@@ -21,6 +22,8 @@ death_song_playing = False
 shop_close_rect = None
 shop_button_rects = {}
 hud_font = pygame.font.SysFont("arial", 24, bold=True)
+click_popups = []
+bar_flash_timer = 0.0
 
 
 clock = pygame.time.Clock()
@@ -29,6 +32,13 @@ running = True
 while running:
     dt = clock.tick(60) / 1000
     can.update(dt)
+    bar_flash_timer = max(0.0, bar_flash_timer - dt)
+
+    alive_popups = []
+    for popup in click_popups:
+        if popup.update(dt):
+            alive_popups.append(popup)
+    click_popups = alive_popups
 
     player.update_passive_recovery(dt)
 
@@ -66,6 +76,12 @@ while running:
             elif can.is_clicked(event.pos, can_center):
                 can_click_sound.play()
                 can.animate()
+
+                click_gain = player.get_click_heart_gain()
+                click_gain_percent = int(round(click_gain * 100))
+                click_popups.append(ClickPopup(f"+{click_gain_percent}%", can_center[0], can_center[1] - 110))
+                bar_flash_timer = 0.18
+
                 died_now = player.apply_can_click()
                 if died_now:
                     if not death_song_playing:
@@ -87,10 +103,19 @@ while running:
         bar_rect = heart_attack_bar_surface.get_rect(midtop=(screen.get_width() // 2, 16))
         screen.blit(heart_attack_bar_surface, bar_rect)
 
+        if bar_flash_timer > 0:
+            flash_alpha = int(90 * (bar_flash_timer / 0.18))
+            flash_surface = pygame.Surface((bar_rect.width + 10, bar_rect.height + 10), pygame.SRCALPHA)
+            flash_surface.fill((220, 40, 40, flash_alpha))
+            screen.blit(flash_surface, (bar_rect.x - 5, bar_rect.y - 5))
+
         money_text = hud_font.render(f"Money: ${player.money}", True, (30, 95, 40))
         shop_hint = hud_font.render("S = Shop", True, (40, 40, 55))
         screen.blit(money_text, (16, 18))
         screen.blit(shop_hint, (screen.get_width() - shop_hint.get_width() - 16, 18))
+
+        for popup in click_popups:
+            popup.draw(screen)
 
         if player.shop_open:
             shop_close_rect, shop_button_rects = shop.draw(screen, player.money, player.upgrade_levels)
