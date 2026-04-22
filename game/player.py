@@ -12,7 +12,7 @@ class Player:
         self.health_level = 0.0
         self.dead = False
         self.shop_open = False
-        self.money = 100000000
+        self.money = 0
         self.upgrade_levels = {"insulation": 0, "cardio": 0, "coupon": 0}
 
     def get_recovery_per_second(self) -> float:
